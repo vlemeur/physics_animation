@@ -5,94 +5,114 @@ The double pendulum problem
 
 This animation illustrates the double pendulum problem.
 
-
-# Double pendulum formula translated from the C code at
-# http://www.physics.usyd.edu.au/~wheat/dpend_html/solve_dpend.c
 """
 
+import matplotlib
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
-import numpy as np
-import scipy.integrate as integrate
-from numpy import cos, sin
+import scipy as sp
 
-G = 9.8  # acceleration due to gravity, in m/s^2
-L1 = 1.0  # length of pendulum 1 in m
-L2 = 1.0  # length of pendulum 2 in m
-M1 = 1.0  # mass of pendulum 1 in kg
-M2 = 1.0  # mass of pendulum 2 in kg
+matplotlib.use("TkAgg")  # 'tkAgg' if Qt not present
 
 
-def derivs(state: np.array, time: np.array) -> np.ndarray:
+class Pendulum:
+    def __init__(self, theta1, theta2, p1, p2, dt):
+        self.theta1 = theta1
+        self.theta2 = theta2
 
-    dydx = np.zeros_like(state)
-    dydx[0] = state[1]
+        self.p1 = p1
+        self.p2 = p2
 
-    del_ = state[2] - state[0]
-    den1 = (M1 + M2) * L1 - M2 * L1 * cos(del_) * cos(del_)
-    dydx[1] = (
-        M2 * L1 * state[1] * state[1] * sin(del_) * cos(del_)
-        + M2 * G * sin(state[2]) * cos(del_)
-        + M2 * L2 * state[3] * state[3] * sin(del_)
-        - (M1 + M2) * G * sin(state[0])
-    ) / den1
+        self.dt = dt
 
-    dydx[2] = state[3]
+        self.g = 9.81
+        self.length = 1.0
 
-    den2 = (L2 / L1) * den1
-    dydx[3] = (
-        -M2 * L2 * state[3] * state[3] * sin(del_) * cos(del_)
-        + (M1 + M2) * G * sin(state[0]) * cos(del_)
-        - (M1 + M2) * L1 * state[1] * state[1] * sin(del_)
-        - (M1 + M2) * G * sin(state[2])
-    ) / den2
+        self.trajectory = [self.polar_to_cartesian()]
 
-    return dydx
+    def polar_to_cartesian(self):
+        x1 = self.length * sp.sin(self.theta1)
+        y1 = -self.length * sp.cos(self.theta1)
 
+        x2 = x1 + self.length * sp.sin(self.theta2)
+        y2 = y1 - self.length * sp.cos(self.theta2)
 
-def double_pendulum(th1: float, th2: float, w1: float, w2: float):
+        # print(self.theta1, self.theta2)
+        return sp.array([[0.0, 0.0], [x1, y1], [x2, y2]])
 
-    # create a time array from 0..100 sampled at 0.05 second steps
-    DT = 0.05
-    time = np.arange(0.0, 20, DT)
+    def evolve(self):
+        theta1 = self.theta1
+        theta2 = self.theta2
+        p1 = self.p1
+        p2 = self.p2
+        g = self.g
+        l = self.length
 
-    # initial state
-    state = np.radians([th1, w1, th2, w2])
+        expr1 = sp.cos(theta1 - theta2)
+        expr2 = sp.sin(theta1 - theta2)
+        expr3 = 1 + expr2 ** 2
+        expr4 = p1 * p2 * expr2 / expr3
+        expr5 = (p1 ** 2 + 2 * p2 ** 2 - p1 * p2 * expr1) * sp.sin(2 * (theta1 - theta2)) / 2 / expr3 ** 2
+        expr6 = expr4 - expr5
 
-    # integrate your ODE using scipy.integrate.
-    y = integrate.odeint(func=derivs, y0=state, time=time)
+        self.theta1 += self.dt * (p1 - p2 * expr1) / expr3
+        self.theta2 += self.dt * (2 * p2 - p1 * expr1) / expr3
+        self.p1 += self.dt * (-2 * g * l * sp.sin(theta1) - expr6)
+        self.p2 += self.dt * (-g * l * sp.sin(theta2) + expr6)
 
-    x1 = L1 * sin(y[:, 0])
-    y1 = -L1 * cos(y[:, 0])
-
-    x2 = L2 * sin(y[:, 2]) + x1
-    y2 = -L2 * cos(y[:, 2]) + y1
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, autoscale_on=False, xlim=(-2, 2), ylim=(-2, 2))
-    ax.grid()
-
-    (line,) = ax.plot([], [], "o-", lw=2)
-    time_template = "time = %.1fs"
-    time_text = ax.text(0.05, 0.9, "", transform=ax.transAxes)
+        new_position = self.polar_to_cartesian()
+        self.trajectory.append(new_position)
+        # print(new_position)
+        return new_position
 
 
-def init(line, time_text):
-    line.set_data([], [])
-    time_text.set_text("")
-    return line, time_text
+class Animator:
+    def __init__(self, pendulum, draw_trace=False):
+        self.pendulum = pendulum
+        self.draw_trace = draw_trace
+        self.time = 0.0
+
+        # set up the figure
+        self.fig, self.ax = plt.subplots()
+        self.ax.set_ylim(-2.5, 2.5)
+        self.ax.set_xlim(-2.5, 2.5)
+
+        # prepare a text window for the timer
+        self.time_text = self.ax.text(
+            0.05, 0.95, "", horizontalalignment="left", verticalalignment="top", transform=self.ax.transAxes
+        )
+
+        # initialize by plotting the last position of the trajectory
+        (self.line,) = self.ax.plot(self.pendulum.trajectory[-1][:, 0], self.pendulum.trajectory[-1][:, 1], marker="o")
+
+        # trace the whole trajectory of the second pendulum mass
+        if self.draw_trace:
+            (self.trace,) = self.ax.plot(
+                [a[2, 0] for a in self.pendulum.trajectory], [a[2, 1] for a in self.pendulum.trajectory]
+            )
+        plt.show()
+
+    def advance_time_step(self):
+        while True:
+            self.time += self.pendulum.dt
+            yield self.pendulum.evolve()
+
+    def update(self, data):
+        self.time_text.set_text("Elapsed time: {:6.2f} s".format(self.time))
+
+        self.line.set_ydata(data[:, 1])
+        self.line.set_xdata(data[:, 0])
+
+        if self.draw_trace:
+            self.trace.set_xdata([a[2, 0] for a in self.pendulum.trajectory])
+            self.trace.set_ydata([a[2, 1] for a in self.pendulum.trajectory])
+        return (self.line,)
+
+    def animate(self):
+        self.animation = animation.FuncAnimation(self.fig, self.update, self.advance_time_step, interval=25, blit=False)
 
 
-def animate(i, x1, x2, y1, y2, line, time_text):
-    thisx = [0, x1[i], x2[i]]
-    thisy = [0, y1[i], y2[i]]
-
-    line.set_data(thisx, thisy)
-    time_text.set_text(time_template % (i * dt))
-    return line, time_text
-
-
-ani = animation.FuncAnimation(fig, animate, np.arange(1, len(y)), interval=25, blit=True, init_func=init)
-
-ani.save("double_pendulum.mp4", fps=15)
-plt.show()
+def double_pendulum(theta1, theta2, p1, p2, dt: float = 0.1):
+    pendulum = Pendulum(theta1=theta1, theta2=theta2, p1=p1, p2=p2, dt=dt)
+    animator = Animator(pendulum=pendulum, draw_trace=True)
+    animator.animate()
