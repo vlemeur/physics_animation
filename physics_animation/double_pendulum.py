@@ -23,7 +23,7 @@ M1 = 1.0  # mass of pendulum 1 in kg
 M2 = 1.0  # mass of pendulum 2 in kg
 
 
-def derivs(state, t):
+def derivs(state: np.array, time: np.array) -> np.ndarray:
 
     dydx = np.zeros_like(state)
     dydx[0] = state[1]
@@ -45,36 +45,31 @@ def derivs(state, t):
 
     return dydx
 
-# create a time array from 0..100 sampled at 0.05 second steps
-dt = 0.05
-t = np.arange(0.0, 20, dt)
+def double_pendulum(th1: float, th2: float, w1: float, w2: float):
 
-# th1 and th2 are the initial angles (degrees)
-# w10 and w20 are the initial angular velocities (degrees per second)
-th1 = 120.0
-w1 = 0.0
-th2 = -10.0
-w2 = 0.0
+    # create a time array from 0..100 sampled at 0.05 second steps
+    DT = 0.05
+    time = np.arange(0.0, 20, DT)
 
-# initial state
-state = np.radians([th1, w1, th2, w2])
+    # initial state
+    state = np.radians([th1, w1, th2, w2])
 
-# integrate your ODE using scipy.integrate.
-y = integrate.odeint(derivs, state, t)
+    # integrate your ODE using scipy.integrate.
+    y = integrate.odeint(func=derivs, y0=state, time=time)
 
-x1 = L1*sin(y[:, 0])
-y1 = -L1*cos(y[:, 0])
+    x1 = L1 * sin(y[:, 0])
+    y1 = -L1 * cos(y[:, 0])
 
-x2 = L2*sin(y[:, 2]) + x1
-y2 = -L2*cos(y[:, 2]) + y1
+    x2 = L2 * sin(y[:, 2]) + x1
+    y2 = -L2 * cos(y[:, 2]) + y1
 
-fig = plt.figure()
-ax = fig.add_subplot(111, autoscale_on=False, xlim=(-2, 2), ylim=(-2, 2))
-ax.grid()
+    fig = plt.figure()
+    ax = fig.add_subplot(111, autoscale_on=False, xlim=(-2, 2), ylim=(-2, 2))
+    ax.grid()
 
-line, = ax.plot([], [], 'o-', lw=2)
-time_template = 'time = %.1fs'
-time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
+    line, = ax.plot([], [], 'o-', lw=2)
+    time_template = 'time = %.1fs'
+    time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
 
 
 def init():
@@ -83,7 +78,7 @@ def init():
     return line, time_text
 
 
-def animate(i):
+def animate(i, x1, x2, y1, y2):
     thisx = [0, x1[i], x2[i]]
     thisy = [0, y1[i], y2[i]]
 
