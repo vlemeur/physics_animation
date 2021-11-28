@@ -1,0 +1,21 @@
+{
+  "template": "git@github.com:vlemeur/vlm-coockiecutter.git",
+  "commit": "fdc8ac6dfa8fc0b839a75b5027f692d3366e6d32",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "author": "Vincent LE MEUR",
+      "email": "vincenlemeur@gmail.com",
+      "project_folder": "physics_animation",
+      "package_name": "physics_animation",
+      "repository_url": "https://github.com/vlemeur/vlm-coockiecutter/physics_animation",
+      "project_short_description": "Physics animation in Python",
+      "data_analysis": "n",
+      "check_dependencies_updates": "n",
+      "documentation": "y",
+      "version": "0.0.0",
+      "_template": "git@github.com:vlemeur/vlm-coockiecutter.git"
+    }
+  },
+  "directory": null
+}
